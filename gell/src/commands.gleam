@@ -11,7 +11,7 @@ pub type Command {
   Exit
   Cd
   Ls
-  Cwd
+  Pwd
   Cat
   Idk(String)
 }
@@ -28,7 +28,7 @@ pub fn parse_cmd(line: String) -> Result(#(Command, String), Nil) {
         "exit" -> Ok(#(Exit, args))
         "cd" -> Ok(#(Cd, args))
         "ls" -> Ok(#(Ls, args))
-        "pwd" -> Ok(#(Cwd, args))
+        "pwd" -> Ok(#(Pwd, args))
         "cat" -> Ok(#(Cat, args))
         // Return the whole thing for unknown commands
         // we'll eventually make on os call as a fallback
@@ -74,4 +74,8 @@ pub fn idk(cwd: String, cmd: String, args: String) -> Result(String, ErrorCode) 
     |> list.map(fn(a) { string.trim(a) })
   shellout.command(run: cmd, with: clean_args, in: cwd, opt: [])
   |> result.map_error(fn(err) { ErrorCode(code: Some(err.0), msg: err.1) })
+}
+
+pub fn pwd(cwd: String) -> Result(String, ErrorCode) {
+  Ok(cwd)
 }

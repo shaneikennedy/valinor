@@ -15,7 +15,7 @@ fn cmd_to_str(c: commands.Command) -> String {
     commands.Exit -> "Exit"
     commands.Cd -> "Cd"
     commands.Ls -> "Ls"
-    commands.Cwd -> "Cwd"
+    commands.Pwd -> "Cwd"
     commands.Cat -> "Cat"
     commands.Idk(program) -> "Non-native command: " <> program
   }
@@ -68,12 +68,30 @@ fn run(shell: sh.Shell) -> Result(Nil, commands.ErrorCode) {
               case commands.idk(sh.cwd(s), program, args) {
                 Ok(o) -> {
                   o |> io.println
-                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Idk(program))))
+                  run(sh.Shell(
+                    cwd: sh.cwd(shell),
+                    last: Some(commands.Idk(program)),
+                  ))
                 }
                 Error(code) -> {
                   code.msg |> io.println
-                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Idk(program))))
+                  run(sh.Shell(
+                    cwd: sh.cwd(shell),
+                    last: Some(commands.Idk(program)),
+                  ))
                 }
+              }
+            }
+            commands.Pwd -> {
+              case commands.pwd(sh.cwd(s)) {
+                Ok(pwd) -> {
+				  pwd |> io.println
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Pwd)))
+				}
+                Error(code) -> {
+				  code.msg |> io.println
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Pwd)))
+				}
               }
             }
             _ -> run(s)
