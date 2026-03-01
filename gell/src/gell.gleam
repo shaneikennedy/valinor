@@ -1,3 +1,4 @@
+import gleam/list
 import commands
 import gleam/io
 import gleam/option.{None, Some}
@@ -22,13 +23,17 @@ fn cmd_to_str(c: commands.Command) -> String {
 }
 
 pub fn main() -> Nil {
-  let _ =
-    sh.Shell("~", None)
+  let res =
+    sh.Shell("/Users/shanekennedy", None)
     |> run
+  case res {
+    Ok(_) -> "Goodbye" |> io.println
+    Error(code) -> code.msg |> io.println
+  }
   Nil
 }
 
-fn run(shell: sh.Shell) -> Result(Nil, commands.Error) {
+fn run(shell: sh.Shell) -> Result(Nil, commands.ErrorCode) {
   let res = gell(shell)
   case res {
     Ok(#(s, args)) -> {
@@ -37,13 +42,27 @@ fn run(shell: sh.Shell) -> Result(Nil, commands.Error) {
           cmd_to_str(p) |> io.println
           case p {
             commands.Exit -> {
-              "Goodbye" |> io.println
               Ok(Nil)
             }
             commands.Cd -> {
               case commands.cd(sh.cwd(s), args) {
                 Ok(path) -> run(sh.Shell(cwd: path, last: Some(commands.Cd)))
-                Error(code) -> Error(code)
+                Error(code) -> {
+                  code.msg |> io.println
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Cd)))
+                }
+              }
+            }
+            commands.Ls -> {
+              case commands.ls(sh.cwd(s), args) {
+                Ok(contents) -> {
+				  contents |> list.map(fn(s) {s |> io.println })
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Ls)))
+				}
+                Error(code) -> {
+                  code.msg |> io.println
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Ls)))
+                }
               }
             }
             _ -> run(s)
@@ -62,7 +81,8 @@ fn run(shell: sh.Shell) -> Result(Nil, commands.Error) {
 // Get the current line, do something, return updated state
 // every command is "program ...args"
 fn gell(shell: sh.Shell) -> Result(#(sh.Shell, String), String) {
-  io.println("> " <> sh.cwd(shell))
+  sh.cwd(shell) |> io.println
+  "> " |> io.print
   let maybe_shell =
     in.read_line()
     |> result.map_error(fn(_err) { "Problem getting line from input" })
