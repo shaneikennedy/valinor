@@ -1,9 +1,8 @@
-import gleam/list
 import commands
 import gleam/io
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
-import gleam/string
 import in
 import sh
 
@@ -18,13 +17,13 @@ fn cmd_to_str(c: commands.Command) -> String {
     commands.Ls -> "Ls"
     commands.Cwd -> "Cwd"
     commands.Cat -> "Cat"
-    commands.Idk -> "Unknown command"
+    commands.Idk(program) -> "Non-native command: " <> program
   }
 }
 
 pub fn main() -> Nil {
   let res =
-    sh.Shell("/Users/shanekennedy", None)
+    sh.Shell("/Users/shanekennedy/dev/shane/valinor/gell", None)
     |> run
   case res {
     Ok(_) -> "Goodbye" |> io.println
@@ -56,12 +55,24 @@ fn run(shell: sh.Shell) -> Result(Nil, commands.ErrorCode) {
             commands.Ls -> {
               case commands.ls(sh.cwd(s), args) {
                 Ok(contents) -> {
-				  contents |> list.map(fn(s) {s |> io.println })
+                  contents |> list.map(fn(s) { s |> io.println })
                   run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Ls)))
-				}
+                }
                 Error(code) -> {
                   code.msg |> io.println
                   run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Ls)))
+                }
+              }
+            }
+            commands.Idk(program) -> {
+              case commands.idk(sh.cwd(s), program, args) {
+                Ok(o) -> {
+                  o |> io.println
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Idk(program))))
+                }
+                Error(code) -> {
+                  code.msg |> io.println
+                  run(sh.Shell(cwd: sh.cwd(shell), last: Some(commands.Idk(program))))
                 }
               }
             }
@@ -87,7 +98,7 @@ fn gell(shell: sh.Shell) -> Result(#(sh.Shell, String), String) {
     in.read_line()
     |> result.map_error(fn(_err) { "Problem getting line from input" })
     |> result.try(fn(line) {
-      parse_cmd(line)
+      commands.parse_cmd(line)
       |> result.map_error(fn(_err) { "problem getting cmd" })
     })
   case maybe_shell {
@@ -95,26 +106,6 @@ fn gell(shell: sh.Shell) -> Result(#(sh.Shell, String), String) {
       Ok(#(sh.Shell(sh.cwd(shell), last: Some(program)), args))
     Error(_) -> {
       Error("Unable to get a result from gell")
-    }
-  }
-}
-
-fn parse_cmd(line: String) -> Result(#(commands.Command, String), Nil) {
-  let cmd = string.split(line, " ")
-  let cmd = case cmd {
-    [] -> #("", "")
-    [program, ..args] -> #(string.trim(program), string.join(args, " "))
-  }
-  case cmd {
-    #(program, args) -> {
-      case program {
-        "exit" -> Ok(#(commands.Exit, args))
-        "cd" -> Ok(#(commands.Cd, args))
-        "ls" -> Ok(#(commands.Ls, args))
-        "cwd" -> Ok(#(commands.Cwd, args))
-        "cat" -> Ok(#(commands.Cat, args))
-        _ -> Ok(#(commands.Idk, args))
-      }
     }
   }
 }
